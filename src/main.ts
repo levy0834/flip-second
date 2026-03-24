@@ -65,14 +65,14 @@ app.innerHTML = `
     <button id="restartBtn" class="ghost-btn">重开一局</button>
   </header>
 
-  <section class="hero-strip card">
+  <section class="hero-strip card compact-strip">
     <div>
-      <span class="mini">首局目标</span>
-      <strong>10 秒内打出第一波爽感</strong>
+      <span class="mini">目标</span>
+      <strong>10 秒上手，30 秒上头</strong>
     </div>
     <div>
-      <span class="mini">今天交付</span>
-      <strong>可玩原型 + Boss + 强化闭环</strong>
+      <span class="mini">版本</span>
+      <strong>Boss / 强化 / 逆转闭环</strong>
     </div>
   </section>
 
@@ -111,20 +111,20 @@ app.innerHTML = `
     </div>
   </section>
 
-  <section class="bottom-sheet">
-    <div class="card instruction-card">
-      <h2>玩法节奏</h2>
-      <ol>
-        <li>拖拽蓄力，找角度</li>
-        <li>松手高速冲刺，撞飞敌人</li>
-        <li>残血触发逆转时刻，打出翻盘</li>
-        <li>清场后选强化，Build 越来越离谱</li>
-        <li>第 3 关进入 Boss 战</li>
-      </ol>
+  <section class="bottom-sheet single-line-sheet">
+    <div class="card instruction-card compact-card">
+      <div class="quick-rules">
+        <span>拖拽瞄准</span>
+        <span>松手冲刺</span>
+        <span>残血逆转</span>
+        <span>第 3 关 Boss</span>
+      </div>
     </div>
-    <div class="card build-card">
-      <h2>本局 Build</h2>
-      <div id="buildTags" class="tags"><span>未成型</span></div>
+    <div class="card build-card compact-card">
+      <div class="build-inline">
+        <h2>本局 Build</h2>
+        <div id="buildTags" class="tags"><span>未成型</span></div>
+      </div>
     </div>
   </section>
 </div>
