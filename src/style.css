@@ -627,8 +627,9 @@ canvas {
 
 @media (max-width: 720px) {
   .shell {
-    padding-inline: 8px;
-    padding-top: 8px;
+    padding-inline: 6px;
+    padding-top: 6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
   .intro-card {
@@ -642,54 +643,72 @@ canvas {
   }
 
   .topbar-actions {
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    gap: 4px;
+    flex-wrap: nowrap;
   }
 
   .ghost-btn,
   .primary-btn {
-    min-height: 40px;
-    padding: 9px 12px;
-    font-size: 13px;
-  }
-
-  .compact-topbar {
-    align-items: flex-start;
-  }
-
-  .compact-subtitle {
+    min-height: 34px;
+    padding: 6px 9px;
     font-size: 12px;
-  }
-
-  .tip {
-    bottom: 8px;
-    width: calc(100% - 12px);
-    padding: 7px 9px;
-    font-size: 11px;
     border-radius: 12px;
   }
 
+  .compact-topbar {
+    align-items: center;
+    gap: 6px;
+  }
+
+  .compact-copy .eyebrow {
+    font-size: 10px;
+    margin-bottom: 0;
+  }
+
+  .compact-subtitle {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .tip {
+    bottom: 6px;
+    width: calc(100% - 8px);
+    padding: 6px 8px;
+    font-size: 10px;
+    border-radius: 10px;
+  }
+
   .status {
-    top: 8px;
-    font-size: 12px;
+    top: 6px;
+    font-size: 11px;
   }
 
   .quick-rules span,
   .tags span {
-    min-height: 24px;
-    padding: 0 7px;
-    font-size: 10px;
+    min-height: 20px;
+    padding: 0 6px;
+    font-size: 9px;
   }
 
   .build-inline {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .build-inline h2 {
+    font-size: 13px;
+  }
+
+  .build-summary {
+    font-size: 10px;
   }
 
   .instruction-card,
   .build-card {
-    padding: 8px 9px;
+    padding: 6px 8px;
   }
 
   .panel,
@@ -703,12 +722,27 @@ canvas {
   }
 
   .flash {
-    font-size: 24px;
+    font-size: 20px;
+    top: 54px;
+  }
+
+  .combo-float {
+    top: 86px;
+    font-size: 14px;
   }
 
   .end-actions,
   .intro-actions,
   .modal-actions {
     flex-direction: column;
+  }
+
+  .shell-game {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+
+  .arena-wrap {
+    border-radius: 18px;
   }
 }

@@ -233,6 +233,7 @@ const endHelpBtn = document.querySelector<HTMLButtonElement>('#endHelpBtn')!
 const endRestartBtn = document.querySelector<HTMLButtonElement>('#endRestartBtn')!
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!
+const arenaMain = document.querySelector<HTMLElement>('.arena-main')!
 const ctx = canvas.getContext('2d')!
 
 const hpBar = document.querySelector<HTMLElement>('#hpBar')!
@@ -264,6 +265,15 @@ const W = canvas.width
 const H = canvas.height
 
 const player = { x: W / 2, y: H - 110, r: 16, vx: 0, vy: 0, flash: 0 }
+
+function updateCanvasMetrics() {
+  const rect = arenaMain.getBoundingClientRect()
+  const visibleRatio = rect.height > 0 ? Math.min(1, rect.height / rect.width / (H / W)) : 1
+  return {
+    visibleBottom: H * visibleRatio,
+    visibleRatio,
+  }
+}
 
 let currentScreen: Screen = 'intro'
 let game: GameState
@@ -397,7 +407,9 @@ function showCombo(text: string) {
 
 function resetGame() {
   game = freshState()
-  Object.assign(player, { x: W / 2, y: H - 110, vx: 0, vy: 0, flash: 0 })
+  const metrics = updateCanvasMetrics()
+  const startY = Math.min(H - 110, Math.max(140, metrics.visibleBottom - 84))
+  Object.assign(player, { x: W / 2, y: startY, vx: 0, vy: 0, flash: 0 })
   particles = []
   trails = []
   enemies = []
@@ -644,6 +656,8 @@ function hitEnemy(enemy: Enemy) {
 function update(dtRaw: number) {
   pulse += dtRaw
   const dt = dtRaw * (game.slowmo > 0 ? 0.45 : 1)
+  const metrics = updateCanvasMetrics()
+  const visibleBottom = metrics.visibleBottom
   if (currentScreen !== 'game') return
   if (game.phase === 'victory' || game.phase === 'defeat' || game.phase === 'upgrade') return
 
@@ -730,9 +744,9 @@ function update(dtRaw: number) {
       screenShake(6)
       game.slowmo = Math.max(game.slowmo, 0.04)
     }
-    if (player.y < player.r || player.y > H - player.r) {
+    if (player.y < player.r || player.y > visibleBottom - player.r) {
       player.vy *= -1
-      player.y = Math.min(H - player.r, Math.max(player.r, player.y))
+      player.y = Math.min(visibleBottom - player.r, Math.max(player.r, player.y))
       screenShake(6)
       game.slowmo = Math.max(game.slowmo, 0.04)
     }
