@@ -70,15 +70,18 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
 <div class="shell">
   <header class="topbar">
-    <div>
+    <div class="topbar-copy">
       <div class="eyebrow">团队开发中 · 微信 H5 可玩原型</div>
       <h1>一秒翻盘</h1>
       <p class="subtitle">拖拽瞄准，松手冲刺。残血触发逆转时刻，把这局从快输打成神反杀。</p>
     </div>
-    <button id="restartBtn" class="ghost-btn">重开一局</button>
+    <div class="topbar-actions">
+      <button id="infoToggleBtn" class="ghost-btn slim-btn">收起说明</button>
+      <button id="restartBtn" class="ghost-btn">重开一局</button>
+    </div>
   </header>
 
-  <section class="hero-strip card compact-strip">
+  <section id="heroStrip" class="hero-strip card compact-strip collapsible-section">
     <div>
       <span class="mini">目标</span>
       <strong>10 秒上手，30 秒上头</strong>
@@ -129,7 +132,7 @@ app.innerHTML = `
     </div>
   </section>
 
-  <section class="bottom-sheet single-line-sheet">
+  <section id="bottomSheet" class="bottom-sheet single-line-sheet collapsible-section">
     <div class="card instruction-card compact-card">
       <div class="quick-rules">
         <span>拖拽瞄准</span>
@@ -160,6 +163,9 @@ const reverseText = document.querySelector<HTMLElement>('#reverseText')!
 const statusEl = document.querySelector<HTMLElement>('#status')!
 const tipEl = document.querySelector<HTMLElement>('#tip')!
 const buildTags = document.querySelector<HTMLElement>('#buildTags')!
+const heroStrip = document.querySelector<HTMLElement>('#heroStrip')!
+const bottomSheet = document.querySelector<HTMLElement>('#bottomSheet')!
+const infoToggleBtn = document.querySelector<HTMLButtonElement>('#infoToggleBtn')!
 const upgradePanel = document.querySelector<HTMLElement>('#upgradePanel')!
 const upgradeList = document.querySelector<HTMLElement>('#upgradeList')!
 const endPanel = document.querySelector<HTMLElement>('#endPanel')!
@@ -172,6 +178,17 @@ const dangerTag = document.querySelector<HTMLElement>('#dangerTag')!
 
 document.querySelector('#restartBtn')!.addEventListener('click', resetGame)
 document.querySelector('#endRestartBtn')!.addEventListener('click', resetGame)
+
+function setInfoCollapsed(collapsed: boolean) {
+  heroStrip.classList.toggle('collapsed', collapsed)
+  bottomSheet.classList.toggle('collapsed', collapsed)
+  infoToggleBtn.textContent = collapsed ? '展开说明' : '收起说明'
+}
+
+infoToggleBtn.addEventListener('click', () => {
+  const collapsed = !heroStrip.classList.contains('collapsed')
+  setInfoCollapsed(collapsed)
+})
 
 const W = canvas.width
 const H = canvas.height
@@ -238,6 +255,7 @@ function showCombo(text: string) {
 
 function resetGame() {
   game = freshState()
+  setInfoCollapsed(window.innerWidth <= 720)
   Object.assign(player, { x: W / 2, y: H - 110, vx: 0, vy: 0, flash: 0 })
   particles = []
   trails = []

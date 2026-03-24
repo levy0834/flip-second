@@ -54,6 +54,10 @@ button {
   gap: 8px;
 }
 
+.topbar-copy {
+  min-width: 0;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -102,6 +106,10 @@ h1 {
   padding: 12px 16px;
   min-height: 46px;
   cursor: pointer;
+}
+
+.slim-btn {
+  padding-inline: 12px;
 }
 
 .primary-btn {
@@ -221,6 +229,21 @@ h1 {
   border: 1px solid rgba(138, 163, 255, 0.2);
   background: rgba(6, 8, 22, 0.74);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+}
+
+.collapsible-section {
+  transition: opacity 0.18s ease, transform 0.18s ease, max-height 0.18s ease, margin 0.18s ease, padding 0.18s ease;
+}
+
+.collapsible-section.collapsed {
+  opacity: 0;
+  transform: translateY(-6px);
+  max-height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
 }
 
 canvas {
@@ -478,6 +501,7 @@ h2 {
     padding-inline: 8px;
     padding-top: 8px;
     gap: 6px;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
 
   .topbar {
@@ -499,6 +523,10 @@ h2 {
   }
 
   .hero-strip {
+    gap: 6px;
+  }
+
+  .hero-strip {
     padding: 8px 10px;
   }
 
@@ -515,12 +543,15 @@ h2 {
 
   .topbar-actions {
     justify-content: flex-end;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .ghost-btn {
-    min-height: 40px;
-    padding: 8px 12px;
-    font-size: 13px;
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 12px;
   }
 
   h1 {
@@ -538,10 +569,11 @@ h2 {
   }
 
   .tip {
-    bottom: 10px;
-    width: calc(100% - 16px);
-    padding: 8px 10px;
-    font-size: 12px;
+    bottom: 8px;
+    width: calc(100% - 12px);
+    padding: 7px 9px;
+    font-size: 11px;
+    border-radius: 12px;
   }
 
   .status {
@@ -555,15 +587,20 @@ h2 {
 
   .quick-rules span,
   .tags span {
-    min-height: 28px;
-    padding: 0 8px;
-    font-size: 11px;
+    min-height: 24px;
+    padding: 0 7px;
+    font-size: 10px;
   }
 
   .build-inline {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .instruction-card,
+  .build-card {
+    padding: 8px 9px;
   }
 
   .panel-title {
