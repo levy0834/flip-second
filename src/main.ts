@@ -7,6 +7,7 @@ type Screen = 'intro' | 'game'
 type Upgrade = {
   id: string
   name: string
+  tag: string
   desc: string
   apply: (state: GameState) => void
 }
@@ -23,13 +24,17 @@ type GameState = {
   dashWidth: number
   reverseCharges: number
   reverseActive: boolean
+  reverseTriggered: boolean
   kills: number
   build: string[]
+  buildTags: string[]
   bossIncoming: boolean
   slowmo: number
   dashTrail: number
   critWindow: number
   dashCount: number
+  introAssist: boolean
+  introAssistShots: number
 }
 
 type Enemy = {
@@ -78,12 +83,12 @@ app.innerHTML = `
 
       <div class="hero-strip intro-strip">
         <div>
-          <span class="mini">目标</span>
-          <strong>10 秒上手，30 秒上头</strong>
+          <span class="mini">首局目标</span>
+          <strong>撑过 3 关，打掉 Boss</strong>
         </div>
         <div>
-          <span class="mini">版本</span>
-          <strong>Boss / 强化 / 逆转闭环</strong>
+          <span class="mini">副目标</span>
+          <strong>至少打出一次逆转或 3 连击</strong>
         </div>
       </div>
 
@@ -157,6 +162,8 @@ app.innerHTML = `
           <div class="panel-title" id="endTitle">这把很秀</div>
           <p id="endDesc"></p>
           <div class="summary" id="summary"></div>
+          <div class="battle-report" id="battleReport"></div>
+          <div class="regret-line" id="regretLine"></div>
           <div class="end-actions">
             <button id="endHelpBtn" class="ghost-btn">查看帮助</button>
             <button id="endRestartBtn" class="primary-btn">再来一把</button>
@@ -170,6 +177,7 @@ app.innerHTML = `
         <div class="build-inline">
           <h2>本局 Build</h2>
           <div id="buildTags" class="tags"><span>未成型</span></div>
+        <span id="buildSummary" class="build-summary">这把还是白板局</span>
         </div>
       </div>
     </section>
@@ -222,6 +230,7 @@ const closeHelpBtn = document.querySelector<HTMLButtonElement>('#closeHelpBtn')!
 const playFromHelpBtn = document.querySelector<HTMLButtonElement>('#playFromHelpBtn')!
 const helpBackdrop = document.querySelector<HTMLElement>('#helpBackdrop')!
 const endHelpBtn = document.querySelector<HTMLButtonElement>('#endHelpBtn')!
+const endRestartBtn = document.querySelector<HTMLButtonElement>('#endRestartBtn')!
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!
 const ctx = canvas.getContext('2d')!
@@ -235,12 +244,15 @@ const reverseText = document.querySelector<HTMLElement>('#reverseText')!
 const statusEl = document.querySelector<HTMLElement>('#status')!
 const tipEl = document.querySelector<HTMLElement>('#tip')!
 const buildTags = document.querySelector<HTMLElement>('#buildTags')!
+const buildSummary = document.querySelector<HTMLElement>('#buildSummary')!
 const upgradePanel = document.querySelector<HTMLElement>('#upgradePanel')!
 const upgradeList = document.querySelector<HTMLElement>('#upgradeList')!
 const endPanel = document.querySelector<HTMLElement>('#endPanel')!
 const endTitle = document.querySelector<HTMLElement>('#endTitle')!
 const endDesc = document.querySelector<HTMLElement>('#endDesc')!
 const summary = document.querySelector<HTMLElement>('#summary')!
+const battleReport = document.querySelector<HTMLElement>('#battleReport')!
+const regretLine = document.querySelector<HTMLElement>('#regretLine')!
 const flashText = document.querySelector<HTMLElement>('#flashText')!
 const comboFloat = document.querySelector<HTMLElement>('#comboFloat')!
 const dangerTag = document.querySelector<HTMLElement>('#dangerTag')!
@@ -269,11 +281,11 @@ let comboFloatTimer = 0
 let pulse = 0
 
 const upgrades: Upgrade[] = [
-  { id: 'power', name: '暴烈冲刺', desc: '冲刺伤害大幅提升，碰撞更狠。', apply: (s) => { s.dashPower += 10; s.build.push('暴烈冲刺') } },
-  { id: 'width', name: '裂空轨迹', desc: '冲刺判定更宽，更容易清场。', apply: (s) => { s.dashWidth += 8; s.build.push('裂空轨迹') } },
-  { id: 'reverse', name: '逆转心流', desc: '额外获得 1 次逆转机会，残血时更容易翻盘。', apply: (s) => { s.reverseCharges += 1; s.build.push('逆转心流') } },
-  { id: 'heal', name: '余烬回路', desc: '立刻回复 30 生命，并提升最大生命。', apply: (s) => { s.maxHp += 10; s.hp = Math.min(s.maxHp, s.hp + 30); s.build.push('余烬回路') } },
-  { id: 'combo', name: '连锁渴望', desc: '起手连击更高，首轮就更容易滚雪球。', apply: (s) => { s.combo += 2; s.build.push('连锁渴望') } },
+  { id: 'power', tag: '爆发', name: '暴烈冲刺', desc: '冲刺伤害大幅提升，碰撞更狠。', apply: (s) => { s.dashPower += 10; s.build.push('暴烈冲刺'); s.buildTags.push('爆发') } },
+  { id: 'width', tag: '爆发', name: '裂空轨迹', desc: '冲刺判定更宽，更容易清场。', apply: (s) => { s.dashWidth += 8; s.build.push('裂空轨迹'); s.buildTags.push('爆发') } },
+  { id: 'reverse', tag: '逆转', name: '逆转心流', desc: '额外获得 1 次逆转机会，残血时更容易翻盘。', apply: (s) => { s.reverseCharges += 1; s.build.push('逆转心流'); s.buildTags.push('逆转') } },
+  { id: 'heal', tag: '逆转', name: '余烬回路', desc: '立刻回复 30 生命，并提升最大生命。', apply: (s) => { s.maxHp += 10; s.hp = Math.min(s.maxHp, s.hp + 30); s.build.push('余烬回路'); s.buildTags.push('逆转') } },
+  { id: 'combo', tag: '连击', name: '连锁渴望', desc: '起手连击更高，首轮就更容易滚雪球。', apply: (s) => { s.combo += 2; s.build.push('连锁渴望'); s.buildTags.push('连击') } },
 ]
 
 function freshState(): GameState {
@@ -289,13 +301,17 @@ function freshState(): GameState {
     dashWidth: 0,
     reverseCharges: 1,
     reverseActive: false,
+    reverseTriggered: false,
     kills: 0,
     build: [],
+    buildTags: [],
     bossIncoming: false,
     slowmo: 0,
     dashTrail: 0,
     critWindow: 0,
     dashCount: 0,
+    introAssist: true,
+    introAssistShots: 0,
   }
 }
 
@@ -332,6 +348,40 @@ playFromHelpBtn.addEventListener('click', () => {
 })
 endHelpBtn.addEventListener('click', openHelp)
 
+function buildStyleSummary(tags: string[]) {
+  const counts = tags.reduce<Record<string, number>>((acc, tag) => {
+    acc[tag] = (acc[tag] ?? 0) + 1
+    return acc
+  }, {})
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1])
+  if (!sorted.length) return '这把还是白板局'
+  const top = sorted[0][0]
+  if (top === '爆发') return '这把是：高爆发穿透流'
+  if (top === '逆转') return '这把是：残血反杀流'
+  return '这把是：连击滚雪球流'
+}
+
+function battleReportText() {
+  if (game.level > 4) return `本局战报：${game.bestCombo} 连 + 斩掉 Boss，这把已经能拿去秀了。`
+  if (game.level >= 3) return `本局战报：你已经见到 Boss 了，离通关就差最后一口气。`
+  if (game.bestCombo >= 5) return `本局战报：最高 ${game.bestCombo} 连，这把手感已经出来了。`
+  return `本局战报：你冲到了第 ${game.level} 关，离 Boss 还差 ${Math.max(0, 3 - game.level)} 关。`
+}
+
+function regretText() {
+  if (!game.reverseTriggered) return '差一点：这把还没把逆转时刻真正打出来，下一把记得在残血时狠狠干一波。'
+  if (game.level < 3) return `差一点：你离 Boss 还差 ${3 - game.level} 关，先把第一波连击打顺。`
+  if (game.bestCombo < 3) return '差一点：你会活了，但还没打出高光连击，下一把追 3 连以上。'
+  return '差一点：这把已经有神图味儿了，换个 Build 再冲一次大概率就过。'
+}
+
+function nextRunLabel() {
+  if (game.level >= 3 && game.phase === 'defeat') return '再来，斩 Boss'
+  if (game.bestCombo >= 5) return '换流派再打一把'
+  if (!game.reverseTriggered) return '再来，打出逆转'
+  return '再冲一把'
+}
+
 function showFlash(text: string, danger = false) {
   flashText.textContent = text
   flashText.classList.remove('hidden', 'danger')
@@ -359,8 +409,11 @@ function resetGame() {
   dangerTag.classList.add('hidden')
   upgradePanel.classList.add('hidden')
   endPanel.classList.add('hidden')
-  tipEl.textContent = '按住拖拽，松手冲刺。撞穿敌人，残血时会亮起逆转时刻。'
-  statusEl.textContent = '第一关 · 先打出第一波爽感'
+  battleReport.textContent = ''
+  regretLine.textContent = ''
+  endRestartBtn.textContent = '再来一把'
+  tipEl.textContent = '先狠狠干第一波，目标是 3 关见 Boss。'
+  statusEl.textContent = '目标：活过 3 关，见 Boss'
   spawnLevel()
   updateHud()
 }
@@ -395,11 +448,21 @@ function spawnLevel() {
     showFlash('BOSS 来了')
   } else {
     game.bossIncoming = false
-    const total = Math.min(3 + game.level, 8)
-    for (let i = 0; i < total; i += 1) {
-      const kinds: EnemyKind[] = ['chaser', 'burst', 'shooter']
-      const kind = kinds[Math.min(kinds.length - 1, Math.floor(Math.random() * Math.min(1 + game.level / 2, 3)))]
-      enemies.push(makeEnemy(kind))
+    if (game.level === 1) {
+      enemies.push(makeEnemy('chaser', 160, 220))
+      enemies.push(makeEnemy('burst', 228, 168))
+      enemies.push(makeEnemy('chaser', 285, 250))
+      statusEl.textContent = '目标：先过 3 关，见 Boss'
+      tipEl.textContent = '先试着一条线穿两只，第一把就该爽到。'
+    } else {
+      const total = Math.min(3 + game.level, 8)
+      for (let i = 0; i < total; i += 1) {
+        const kinds: EnemyKind[] = ['chaser', 'burst', 'shooter']
+        const kind = kinds[Math.min(kinds.length - 1, Math.floor(Math.random() * Math.min(1 + game.level / 2, 3)))]
+        enemies.push(makeEnemy(kind))
+      }
+      statusEl.textContent = `距离 Boss 还差 ${Math.max(0, 3 - game.level)} 关`
+      tipEl.textContent = game.level === 2 ? 'Boss 临近，先把 Build 凑起来。' : '继续清场，往 Boss 推进。'
     }
   }
   game.phase = 'ready'
@@ -413,15 +476,15 @@ function chooseUpgrades() {
   choices.forEach((upgrade) => {
     const button = document.createElement('button')
     button.className = 'upgrade-btn'
-    button.innerHTML = `<strong>${upgrade.name}</strong><span>${upgrade.desc}</span>`
+    button.innerHTML = `<em class="upgrade-tag">${upgrade.tag}</em><strong>${upgrade.name}</strong><span>${upgrade.desc}</span>`
     button.addEventListener('click', () => {
       upgrade.apply(game)
       upgradePanel.classList.add('hidden')
       game.level += 1
       if (game.level > 4) finishGame(true)
       else {
-        statusEl.textContent = `第 ${game.level} 关 · Build 继续发疯`
-        tipEl.textContent = game.level === 3 ? '别贪刀，先找一条能连续穿怪的线。' : '你已经不是白板了，开始打成型局。'
+        statusEl.textContent = game.level === 2 ? '不错，你离 Boss 只差 1 关' : `第 ${game.level} 关 · Build 继续发疯`
+        tipEl.textContent = game.level === 3 ? 'Boss 临近，别贪刀，先找一条能连续穿怪的线。' : '你已经不是白板了，开始打成型局。'
         spawnLevel()
         updateHud()
       }
@@ -435,6 +498,9 @@ function finishGame(victory: boolean) {
   endPanel.classList.remove('hidden')
   endTitle.textContent = victory ? '漂亮，这把通了' : '差一点就翻盘了'
   endDesc.textContent = victory ? '这一版已经有爽感、节奏点和一次值得分享的反杀体验。' : '这把已经有那个味儿了，再来一局很容易打出真正神图。'
+  battleReport.textContent = battleReportText()
+  regretLine.textContent = victory ? '漂亮，这把已经完成第一次通关闭环了。' : regretText()
+  endRestartBtn.textContent = victory ? '换流派再打一把' : nextRunLabel()
   summary.innerHTML = `
     <div><span>最终关卡</span><strong>${game.level}</strong></div>
     <div><span>分数</span><strong>${game.score}</strong></div>
@@ -451,6 +517,7 @@ function updateHud() {
   comboText.textContent = String(game.combo)
   reverseText.textContent = String(game.reverseCharges)
   buildTags.innerHTML = game.build.length ? game.build.map((tag) => `<span>${tag}</span>`).join('') : '<span>未成型</span>'
+  buildSummary.textContent = buildStyleSummary(game.buildTags)
   const inDanger = game.hp / game.maxHp < 0.25 && game.reverseCharges > 0
   dangerTag.classList.toggle('hidden', !inDanger)
   if (inDanger) statusEl.textContent = '逆转时刻已亮起 · 残血才是你的主场'
@@ -472,6 +539,7 @@ function addTrail(x: number, y: number, color: string) {
 function tryReverse() {
   if (game.hp / game.maxHp < 0.25 && game.reverseCharges > 0 && !game.reverseActive) {
     game.reverseActive = true
+    game.reverseTriggered = true
     game.reverseCharges -= 1
     game.slowmo = 0.8
     player.flash = 0.9
@@ -490,6 +558,15 @@ function pointerToCanvas(e: PointerEvent) {
   return { x: ((e.clientX - rect.left) / rect.width) * W, y: ((e.clientY - rect.top) / rect.height) * H }
 }
 
+function suggestAimTarget() {
+  if (!enemies.length) return null
+  const alive = enemies.filter((enemy) => enemy.alive)
+  if (!alive.length) return null
+  const ordered = [...alive].sort((a, b) => a.y - b.y)
+  const primary = ordered[0]
+  return { x: player.x - (primary.x - player.x) * 0.85, y: player.y - (primary.y - player.y) * 0.85 }
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   if (currentScreen !== 'game' || game.phase !== 'ready') return
   aiming = true
@@ -497,6 +574,14 @@ canvas.addEventListener('pointerdown', (e) => {
   const pos = pointerToCanvas(e)
   aimX = pos.x
   aimY = pos.y
+  if (game.level === 1 && game.introAssist && game.introAssistShots < 1) {
+    const suggested = suggestAimTarget()
+    if (suggested) {
+      aimX = suggested.x
+      aimY = suggested.y
+      tipEl.textContent = '往后拉一点，松手直接穿过去。'
+    }
+  }
 })
 canvas.addEventListener('pointermove', (e) => {
   if (!aiming) return
@@ -517,7 +602,8 @@ window.addEventListener('pointerup', () => {
   game.dashTrail = 0.24
   game.critWindow = 0.18
   game.dashCount += 1
-  tipEl.textContent = '好，继续找角度。残血时会爆出逆转时刻。'
+  game.introAssistShots += 1
+  tipEl.textContent = game.level === 1 && game.introAssistShots <= 1 ? '第一下狠狠干，尽量打出穿怪。' : '好，继续找角度。残血时会爆出逆转时刻。'
 })
 
 function hitEnemy(enemy: Enemy) {
@@ -531,6 +617,9 @@ function hitEnemy(enemy: Enemy) {
   game.slowmo = Math.max(game.slowmo, crit ? 0.12 : 0.08)
   burst(enemy.x, enemy.y, enemy.kind === 'burst' ? '#ff7a7a' : enemy.kind === 'boss' ? '#ffd26a' : '#9f7aff', crit ? 16 : 10)
   if (game.combo >= 3) showCombo(`${game.combo} 连击`)
+  if (game.level === 1 && game.dashCount <= 1) {
+    tipEl.textContent = '对，就是这个感觉。继续找一条能一穿多的线。'
+  }
   if (enemy.hp <= 0) {
     enemy.alive = false
     game.kills += 1
