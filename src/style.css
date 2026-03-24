@@ -23,7 +23,9 @@
 html,
 body {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 body {
@@ -38,21 +40,25 @@ button {
 }
 
 #app {
+  height: 100vh;
   min-height: 100vh;
 }
 
 .shell {
   width: min(100%, 980px);
+  height: 100vh;
   margin: 0 auto;
-  padding: 18px 14px 28px;
+  padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 8px;
 }
 
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
 }
 
 .topbar-actions {
@@ -107,10 +113,13 @@ h1 {
 
 .hero-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  padding: 16px 18px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.compact-strip strong {
+  font-size: 14px;
 }
 
 .hero-strip strong {
@@ -128,8 +137,7 @@ h1 {
 .hud {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 8px;
 }
 
 .card {
@@ -142,7 +150,7 @@ h1 {
 
 .stat-card,
 .stats-grid {
-  padding: 14px;
+  padding: 10px 12px;
 }
 
 .stat-head,
@@ -201,12 +209,14 @@ h1 {
 .stats-grid strong,
 .summary strong,
 .stat-card strong {
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .arena-wrap {
   position: relative;
-  border-radius: 28px;
+  min-height: 0;
+  height: 100%;
+  border-radius: 24px;
   overflow: hidden;
   border: 1px solid rgba(138, 163, 255, 0.2);
   background: rgba(6, 8, 22, 0.74);
@@ -216,8 +226,9 @@ h1 {
 canvas {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   aspect-ratio: 390 / 720;
+  object-fit: contain;
   touch-action: none;
   transition: transform 0.08s ease;
 }
@@ -352,29 +363,58 @@ canvas {
 
 .bottom-sheet {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 8px;
+}
+
+.single-line-sheet {
+  min-height: 0;
 }
 
 .instruction-card,
 .build-card {
-  padding: 16px;
+  padding: 10px 12px;
+}
+
+.compact-card {
+  border-radius: 16px;
+}
+
+.quick-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-rules span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(238,243,255,0.88);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.build-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.build-inline h2 {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 15px;
 }
 
 h2 {
   margin: 0 0 12px;
   font-size: 18px;
-}
-
-ol {
-  margin: 0;
-  padding-left: 18px;
-  color: rgba(237, 242, 255, 0.82);
-}
-
-li + li {
-  margin-top: 8px;
 }
 
 .tags {
@@ -398,25 +438,100 @@ li + li {
 }
 
 @media (max-width: 720px) {
+  body {
+    overflow: hidden;
+  }
+
   .shell {
-    padding-inline: 10px;
+    padding-inline: 8px;
+    padding-top: 8px;
+    gap: 6px;
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .topbar .subtitle {
+    font-size: 13px;
+    margin-top: 6px;
+    max-width: none;
   }
 
   .hero-strip,
-  .topbar,
   .hud,
   .bottom-sheet {
     grid-template-columns: 1fr;
-    display: grid;
+  }
+
+  .hero-strip {
+    padding: 8px 10px;
+  }
+
+  .hero-strip strong {
+    font-size: 13px;
+  }
+
+  .mini,
+  .stat-card span,
+  .stats-grid span,
+  .build-header span {
+    font-size: 11px;
   }
 
   .topbar-actions {
-    justify-content: stretch;
+    justify-content: flex-end;
   }
 
-  .ghost-btn,
-  .primary-btn {
-    width: 100%;
+  .ghost-btn {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .stats-grid {
+    gap: 8px;
+  }
+
+  .stats-grid strong,
+  .summary strong,
+  .stat-card strong {
+    font-size: 16px;
+  }
+
+  .tip {
+    bottom: 10px;
+    width: calc(100% - 16px);
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .status {
+    top: 8px;
+    font-size: 12px;
+  }
+
+  .quick-rules {
+    gap: 5px;
+  }
+
+  .quick-rules span,
+  .tags span {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .build-inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   .panel-title {
