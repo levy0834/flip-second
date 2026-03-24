@@ -20,9 +20,17 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(90, 110, 255, 0.18), transparent 28%),
+    radial-gradient(circle at bottom, rgba(0, 208, 255, 0.12), transparent 32%),
+    #05060d;
 }
 
 button {
@@ -47,6 +55,13 @@ button {
   margin-bottom: 14px;
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .eyebrow {
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -57,7 +72,7 @@ button {
 
 h1 {
   margin: 0;
-  font-size: clamp(28px, 6vw, 44px);
+  font-size: clamp(30px, 6vw, 48px);
   line-height: 1;
 }
 
@@ -80,6 +95,7 @@ h1 {
 .primary-btn {
   padding: 12px 16px;
   min-height: 46px;
+  cursor: pointer;
 }
 
 .primary-btn {
@@ -87,6 +103,26 @@ h1 {
   color: #04101a;
   font-weight: 800;
   border: none;
+}
+
+.hero-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.hero-strip strong {
+  display: block;
+  font-size: 16px;
+}
+
+.mini {
+  display: block;
+  font-size: 12px;
+  color: rgba(219, 228, 255, 0.65);
+  margin-bottom: 4px;
 }
 
 .hud {
@@ -109,12 +145,34 @@ h1 {
   padding: 14px;
 }
 
+.stat-head,
+.build-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .stat-card span,
 .stats-grid span,
-.summary span {
+.summary span,
+.build-header span {
   display: block;
   font-size: 12px;
   color: rgba(228, 233, 255, 0.66);
+}
+
+.danger-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #ffdce7;
+  font-style: normal;
+  font-weight: 700;
+  background: rgba(255, 90, 166, 0.12);
+  border: 1px solid rgba(255, 90, 166, 0.24);
 }
 
 .bar {
@@ -161,6 +219,7 @@ canvas {
   height: auto;
   aspect-ratio: 390 / 720;
   touch-action: none;
+  transition: transform 0.08s ease;
 }
 
 .overlay {
@@ -192,6 +251,30 @@ canvas {
   color: rgba(239, 245, 255, 0.92);
 }
 
+.flash {
+  top: 72px;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  text-shadow: 0 0 24px rgba(134, 246, 255, 0.9);
+}
+
+.flash.danger {
+  color: #ffe3ee;
+  text-shadow: 0 0 24px rgba(255, 90, 166, 0.9);
+}
+
+.combo-float {
+  top: 110px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffd76a;
+  text-shadow: 0 0 18px rgba(255, 215, 106, 0.65);
+}
+
 .center {
   inset: 0;
   display: flex;
@@ -218,6 +301,11 @@ canvas {
 .panel-title {
   font-size: 24px;
   font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.panel-subtitle {
+  color: rgba(230, 236, 255, 0.66);
   margin-bottom: 14px;
 }
 
@@ -230,6 +318,13 @@ canvas {
   text-align: left;
   padding: 15px 16px;
   cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.upgrade-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(134, 246, 255, 0.4);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
 .upgrade-btn strong {
@@ -307,6 +402,7 @@ li + li {
     padding-inline: 10px;
   }
 
+  .hero-strip,
   .topbar,
   .hud,
   .bottom-sheet {
@@ -314,8 +410,8 @@ li + li {
     display: grid;
   }
 
-  .topbar {
-    display: grid;
+  .topbar-actions {
+    justify-content: stretch;
   }
 
   .ghost-btn,
@@ -325,5 +421,9 @@ li + li {
 
   .panel-title {
     font-size: 22px;
+  }
+
+  .flash {
+    font-size: 24px;
   }
 }
