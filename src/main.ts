@@ -26,6 +26,9 @@ type GameState = {
   build: string[]
   bossIncoming: boolean
   slowmo: number
+  dashTrail: number
+  critWindow: number
+  dashCount: number
 }
 
 type Enemy = {
@@ -40,6 +43,8 @@ type Enemy = {
   flash: number
   vx?: number
   vy?: number
+  orbit?: number
+  cooldown?: number
 }
 
 type Particle = {
@@ -49,6 +54,14 @@ type Particle = {
   vy: number
   life: number
   size: number
+  color: string
+}
+
+type TrailMark = {
+  x: number
+  y: number
+  r: number
+  life: number
   color: string
 }
 
@@ -78,7 +91,10 @@ app.innerHTML = `
 
   <section class="hud">
     <div class="card stat-card">
-      <span>生命</span>
+      <div class="stat-head">
+        <span>生命</span>
+        <em id="dangerTag" class="danger-tag hidden">危险但能翻</em>
+      </div>
       <div class="bar"><i id="hpBar"></i></div>
       <strong id="hpText">100 / 100</strong>
     </div>
@@ -93,11 +109,13 @@ app.innerHTML = `
   <section class="arena-wrap">
     <canvas id="game" width="390" height="720"></canvas>
     <div class="overlay status" id="status"></div>
-    <div class="overlay tip" id="tip">按住拖拽，松手冲刺。撞穿敌人，残血时会亮起逆转时刻。</div>
     <div class="overlay flash hidden" id="flashText"></div>
+    <div class="overlay combo-float hidden" id="comboFloat"></div>
+    <div class="overlay tip" id="tip">按住拖拽，松手冲刺。撞穿敌人，残血时会亮起逆转时刻。</div>
     <div class="overlay center hidden" id="upgradePanel">
       <div class="panel">
         <div class="panel-title">选一个强化</div>
+        <div class="panel-subtitle">这一把的风格，开始长出来了。</div>
         <div class="upgrade-list" id="upgradeList"></div>
       </div>
     </div>
@@ -149,6 +167,8 @@ const endTitle = document.querySelector<HTMLElement>('#endTitle')!
 const endDesc = document.querySelector<HTMLElement>('#endDesc')!
 const summary = document.querySelector<HTMLElement>('#summary')!
 const flashText = document.querySelector<HTMLElement>('#flashText')!
+const comboFloat = document.querySelector<HTMLElement>('#comboFloat')!
+const dangerTag = document.querySelector<HTMLElement>('#dangerTag')!
 
 document.querySelector('#restartBtn')!.addEventListener('click', resetGame)
 document.querySelector('#endRestartBtn')!.addEventListener('click', resetGame)
@@ -161,6 +181,7 @@ const player = { x: W / 2, y: H - 110, r: 16, vx: 0, vy: 0, flash: 0 }
 let game: GameState
 let enemies: Enemy[] = []
 let particles: Particle[] = []
+let trails: TrailMark[] = []
 let enemyId = 0
 let aiming = false
 let aimX = 0
@@ -168,17 +189,38 @@ let aimY = 0
 let lastTime = 0
 let levelResolved = false
 let flashTimer = 0
+let comboFloatTimer = 0
+let pulse = 0
 
 const upgrades: Upgrade[] = [
   { id: 'power', name: '暴烈冲刺', desc: '冲刺伤害大幅提升，碰撞更狠。', apply: (s) => { s.dashPower += 10; s.build.push('暴烈冲刺') } },
   { id: 'width', name: '裂空轨迹', desc: '冲刺判定更宽，更容易清场。', apply: (s) => { s.dashWidth += 8; s.build.push('裂空轨迹') } },
   { id: 'reverse', name: '逆转心流', desc: '额外获得 1 次逆转机会，残血时更容易翻盘。', apply: (s) => { s.reverseCharges += 1; s.build.push('逆转心流') } },
   { id: 'heal', name: '余烬回路', desc: '立刻回复 30 生命，并提升最大生命。', apply: (s) => { s.maxHp += 10; s.hp = Math.min(s.maxHp, s.hp + 30); s.build.push('余烬回路') } },
-  { id: 'combo', name: '连锁渴望', desc: '连击更容易叠高，分数增长更快。', apply: (s) => { s.combo += 2; s.build.push('连锁渴望') } },
+  { id: 'combo', name: '连锁渴望', desc: '起手连击更高，首轮就更容易滚雪球。', apply: (s) => { s.combo += 2; s.build.push('连锁渴望') } },
 ]
 
 function freshState(): GameState {
-  return { phase: 'ready', level: 1, score: 0, hp: 100, maxHp: 100, combo: 0, bestCombo: 0, dashPower: 22, dashWidth: 0, reverseCharges: 1, reverseActive: false, kills: 0, build: [], bossIncoming: false, slowmo: 0 }
+  return {
+    phase: 'ready',
+    level: 1,
+    score: 0,
+    hp: 100,
+    maxHp: 100,
+    combo: 0,
+    bestCombo: 0,
+    dashPower: 22,
+    dashWidth: 0,
+    reverseCharges: 1,
+    reverseActive: false,
+    kills: 0,
+    build: [],
+    bossIncoming: false,
+    slowmo: 0,
+    dashTrail: 0,
+    critWindow: 0,
+    dashCount: 0,
+  }
 }
 
 function showFlash(text: string, danger = false) {
@@ -188,15 +230,24 @@ function showFlash(text: string, danger = false) {
   flashTimer = 0.75
 }
 
+function showCombo(text: string) {
+  comboFloat.textContent = text
+  comboFloat.classList.remove('hidden')
+  comboFloatTimer = 0.68
+}
+
 function resetGame() {
   game = freshState()
   Object.assign(player, { x: W / 2, y: H - 110, vx: 0, vy: 0, flash: 0 })
   particles = []
+  trails = []
   enemies = []
   enemyId = 0
   aiming = false
   levelResolved = false
   flashText.classList.add('hidden')
+  comboFloat.classList.add('hidden')
+  dangerTag.classList.add('hidden')
   upgradePanel.classList.add('hidden')
   endPanel.classList.add('hidden')
   tipEl.textContent = '按住拖拽，松手冲刺。撞穿敌人，残血时会亮起逆转时刻。'
@@ -206,7 +257,7 @@ function resetGame() {
 }
 
 function makeEnemy(kind: EnemyKind, x?: number, y?: number): Enemy {
-  if (kind === 'boss') return { id: ++enemyId, x: x ?? W / 2, y: y ?? 150, r: 34, hp: 170, speed: 42, kind, alive: true, flash: 0, vx: 110, vy: 0 }
+  if (kind === 'boss') return { id: ++enemyId, x: x ?? W / 2, y: y ?? 150, r: 34, hp: 170, speed: 42, kind, alive: true, flash: 0, vx: 110, vy: 0, cooldown: 1.8 }
   return {
     id: ++enemyId,
     x: x ?? 50 + Math.random() * (W - 100),
@@ -217,6 +268,8 @@ function makeEnemy(kind: EnemyKind, x?: number, y?: number): Enemy {
     kind,
     alive: true,
     flash: 0,
+    orbit: Math.random() * Math.PI * 2,
+    cooldown: 1 + Math.random() * 0.8,
   }
 }
 
@@ -259,6 +312,7 @@ function chooseUpgrades() {
       if (game.level > 4) finishGame(true)
       else {
         statusEl.textContent = `第 ${game.level} 关 · Build 继续发疯`
+        tipEl.textContent = game.level === 3 ? '别贪刀，先找一条能连续穿怪的线。' : '你已经不是白板了，开始打成型局。'
         spawnLevel()
         updateHud()
       }
@@ -271,7 +325,7 @@ function finishGame(victory: boolean) {
   game.phase = victory ? 'victory' : 'defeat'
   endPanel.classList.remove('hidden')
   endTitle.textContent = victory ? '漂亮，这把通了' : '差一点就翻盘了'
-  endDesc.textContent = victory ? '你已经拿到一个可演示、可继续打磨、并且有 Boss 闭环的 H5 原型。' : '这把已经有那个味儿了，再来一局很容易打出真正神图。'
+  endDesc.textContent = victory ? '这一版已经有爽感、节奏点和一次值得分享的反杀体验。' : '这把已经有那个味儿了，再来一局很容易打出真正神图。'
   summary.innerHTML = `
     <div><span>最终关卡</span><strong>${game.level}</strong></div>
     <div><span>分数</span><strong>${game.score}</strong></div>
@@ -288,7 +342,9 @@ function updateHud() {
   comboText.textContent = String(game.combo)
   reverseText.textContent = String(game.reverseCharges)
   buildTags.innerHTML = game.build.length ? game.build.map((tag) => `<span>${tag}</span>`).join('') : '<span>未成型</span>'
-  if (game.hp / game.maxHp < 0.25 && game.reverseCharges > 0) statusEl.textContent = '逆转时刻已亮起 · 残血才是你的主场'
+  const inDanger = game.hp / game.maxHp < 0.25 && game.reverseCharges > 0
+  dangerTag.classList.toggle('hidden', !inDanger)
+  if (inDanger) statusEl.textContent = '逆转时刻已亮起 · 残血才是你的主场'
 }
 
 function screenShake(intensity = 8) {
@@ -300,6 +356,10 @@ function burst(x: number, y: number, color: string, count = 18) {
   for (let i = 0; i < count; i += 1) particles.push({ x, y, vx: (Math.random() - 0.5) * 260, vy: (Math.random() - 0.5) * 260, life: 0.7 + Math.random() * 0.4, size: 2 + Math.random() * 4, color })
 }
 
+function addTrail(x: number, y: number, color: string) {
+  trails.push({ x, y, r: 11 + Math.random() * 6, life: 0.28, color })
+}
+
 function tryReverse() {
   if (game.hp / game.maxHp < 0.25 && game.reverseCharges > 0 && !game.reverseActive) {
     game.reverseActive = true
@@ -309,7 +369,9 @@ function tryReverse() {
     burst(player.x, player.y, '#8ef7ff', 26)
     screenShake(12)
     statusEl.textContent = '逆转启动 · 一波清场！'
+    tipEl.textContent = '现在别怂，找一条能穿两只以上的线。'
     showFlash('逆转时刻', true)
+    showCombo('反杀窗口已开')
     updateHud()
   }
 }
@@ -343,25 +405,30 @@ window.addEventListener('pointerup', () => {
   player.vx = (dx / len) * power
   player.vy = (dy / len) * power
   game.phase = 'dash'
+  game.dashTrail = 0.24
+  game.critWindow = 0.18
+  game.dashCount += 1
   tipEl.textContent = '好，继续找角度。残血时会爆出逆转时刻。'
 })
 
 function hitEnemy(enemy: Enemy) {
-  const damage = game.dashPower + (game.reverseActive ? 22 : 0) + (enemy.kind === 'boss' ? 2 : 0)
+  const crit = game.critWindow > 0
+  const damage = game.dashPower + (game.reverseActive ? 22 : 0) + (crit ? 10 : 0) + (enemy.kind === 'boss' ? 2 : 0)
   enemy.hp -= damage
-  enemy.flash = 0.14
+  enemy.flash = crit ? 0.22 : 0.14
   game.combo += 1
   game.bestCombo = Math.max(game.bestCombo, game.combo)
-  game.score += 20 + game.combo * 3
-  game.slowmo = Math.max(game.slowmo, 0.08)
-  burst(enemy.x, enemy.y, enemy.kind === 'burst' ? '#ff7a7a' : enemy.kind === 'boss' ? '#ffd26a' : '#9f7aff', 10)
+  game.score += 20 + game.combo * 3 + (crit ? 12 : 0)
+  game.slowmo = Math.max(game.slowmo, crit ? 0.12 : 0.08)
+  burst(enemy.x, enemy.y, enemy.kind === 'burst' ? '#ff7a7a' : enemy.kind === 'boss' ? '#ffd26a' : '#9f7aff', crit ? 16 : 10)
+  if (game.combo >= 3) showCombo(`${game.combo} 连击`) 
   if (enemy.hp <= 0) {
     enemy.alive = false
     game.kills += 1
     game.score += enemy.kind === 'boss' ? 600 : 60 + game.level * 10
     burst(enemy.x, enemy.y, enemy.kind === 'burst' ? '#ff9469' : enemy.kind === 'boss' ? '#fff099' : '#7cf3ff', enemy.kind === 'boss' ? 46 : 22)
     screenShake(enemy.kind === 'boss' ? 18 : enemy.kind === 'burst' ? 14 : 8)
-    showFlash(enemy.kind === 'boss' ? 'Boss 击破' : '清场击杀')
+    showFlash(enemy.kind === 'boss' ? 'Boss 击破' : crit ? '暴击清场' : '清场击杀')
     if (enemy.kind === 'burst') {
       enemies.forEach((other) => {
         if (!other.alive) return
@@ -377,13 +444,20 @@ function hitEnemy(enemy: Enemy) {
 }
 
 function update(dtRaw: number) {
+  pulse += dtRaw
   const dt = dtRaw * (game.slowmo > 0 ? 0.45 : 1)
   if (game.phase === 'victory' || game.phase === 'defeat' || game.phase === 'upgrade') return
 
   if (game.slowmo > 0) game.slowmo = Math.max(0, game.slowmo - dtRaw * 1.2)
+  if (game.dashTrail > 0) game.dashTrail = Math.max(0, game.dashTrail - dtRaw)
+  if (game.critWindow > 0) game.critWindow = Math.max(0, game.critWindow - dtRaw)
   if (flashTimer > 0) {
     flashTimer -= dtRaw
     if (flashTimer <= 0) flashText.classList.add('hidden')
+  }
+  if (comboFloatTimer > 0) {
+    comboFloatTimer -= dtRaw
+    if (comboFloatTimer <= 0) comboFloat.classList.add('hidden')
   }
 
   particles = particles.filter((p) => p.life > 0)
@@ -395,21 +469,43 @@ function update(dtRaw: number) {
     p.vy *= 0.96
   })
 
+  trails = trails.filter((t) => t.life > 0)
+  trails.forEach((t) => {
+    t.life -= dtRaw
+    t.r *= 0.992
+  })
+
   enemies.forEach((enemy) => {
     if (!enemy.alive) return
     enemy.flash = Math.max(0, enemy.flash - dt)
+    enemy.cooldown = Math.max(0, (enemy.cooldown ?? 0) - dt)
     if (enemy.kind === 'boss') {
       enemy.x += (enemy.vx ?? 0) * dt
       if (enemy.x < 60 || enemy.x > W - 60) enemy.vx = -(enemy.vx ?? 0)
       const by = 150 + Math.sin(performance.now() / 500) * 18
       enemy.y += (by - enemy.y) * 0.06
+      if ((enemy.cooldown ?? 0) <= 0) {
+        enemy.cooldown = 1.5
+        burst(enemy.x, enemy.y + 12, '#ffd56f', 8)
+      }
     } else {
       const dx = player.x - enemy.x
       const dy = player.y - enemy.y
       const d = Math.hypot(dx, dy) || 1
       if (game.phase !== 'dash') {
-        enemy.x += (dx / d) * enemy.speed * dt
-        enemy.y += (dy / d) * enemy.speed * dt
+        if (enemy.kind === 'shooter') {
+          enemy.orbit = (enemy.orbit ?? 0) + dt * 1.6
+          enemy.x += (dx / d) * enemy.speed * dt * 0.58 + Math.cos(enemy.orbit ?? 0) * 16 * dt
+          enemy.y += (dy / d) * enemy.speed * dt * 0.42 + Math.sin(enemy.orbit ?? 0) * 18 * dt
+        } else if (enemy.kind === 'burst') {
+          const lunge = (enemy.cooldown ?? 0) <= 0 ? 1.9 : 1
+          if ((enemy.cooldown ?? 0) <= 0) enemy.cooldown = 1.2
+          enemy.x += (dx / d) * enemy.speed * dt * lunge
+          enemy.y += (dy / d) * enemy.speed * dt * lunge
+        } else {
+          enemy.x += (dx / d) * enemy.speed * dt
+          enemy.y += (dy / d) * enemy.speed * dt
+        }
       }
     }
     const d = Math.hypot(player.x - enemy.x, player.y - enemy.y)
@@ -428,6 +524,7 @@ function update(dtRaw: number) {
     player.y += player.vy * dt * speedMul
     player.vx *= 0.985
     player.vy *= 0.985
+    if (game.dashTrail > 0) addTrail(player.x, player.y, game.reverseActive ? '#9cf9ff' : '#9ab8ff')
     if (player.x < player.r || player.x > W - player.r) {
       player.vx *= -1
       player.x = Math.min(W - player.r, Math.max(player.r, player.x))
@@ -458,6 +555,7 @@ function update(dtRaw: number) {
     levelResolved = true
     game.score += game.bossIncoming ? 500 : 100
     statusEl.textContent = game.bossIncoming ? 'Boss 已倒下 · 去拿最终强化' : `第 ${game.level} 关清场 · 选个强化继续疯`
+    tipEl.textContent = game.bossIncoming ? '这一把已经有演示价值了。' : '现在选强化，决定下一关怎么爽。'
     updateHud()
     setTimeout(() => chooseUpgrades(), 460)
   }
@@ -479,6 +577,15 @@ function drawArena() {
     ctx.fillRect(0, i * 42 + ((Date.now() / 40) % 42), W, 1)
   }
 
+  trails.forEach((t) => {
+    ctx.globalAlpha = Math.max(0, t.life * 1.8)
+    ctx.fillStyle = t.color
+    ctx.beginPath()
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
+  })
+
   particles.forEach((p) => {
     ctx.globalAlpha = Math.max(0, p.life)
     ctx.fillStyle = p.color
@@ -495,9 +602,11 @@ function drawArena() {
     ctx.shadowBlur = enemy.kind === 'boss' ? 28 : 16
     ctx.shadowColor = color
     ctx.fillStyle = color
+    ctx.globalAlpha = enemy.kind === 'boss' ? 0.95 : 0.92
     ctx.beginPath()
-    ctx.arc(0, 0, enemy.r, 0, Math.PI * 2)
+    ctx.arc(0, 0, enemy.r + Math.sin(pulse * (enemy.kind === 'boss' ? 5 : 8)) * 0.8, 0, Math.PI * 2)
     ctx.fill()
+    ctx.globalAlpha = 1
     ctx.lineWidth = enemy.kind === 'boss' ? 4 : 2
     ctx.strokeStyle = enemy.kind === 'boss' ? 'rgba(255,240,180,0.65)' : 'rgba(255,255,255,0.35)'
     ctx.stroke()
@@ -505,18 +614,46 @@ function drawArena() {
       ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke()
       ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke()
     }
+    if (enemy.kind === 'shooter') {
+      ctx.strokeStyle = 'rgba(255,245,180,0.8)'
+      ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(7, 7); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(7, -7); ctx.lineTo(-7, 7); ctx.stroke()
+    }
+    if (enemy.kind === 'burst') {
+      ctx.strokeStyle = 'rgba(255,180,160,0.9)'
+      ctx.beginPath()
+      for (let i = 0; i < 6; i += 1) {
+        const a = (Math.PI * 2 * i) / 6
+        const r = enemy.r + 5
+        const x = Math.cos(a) * r
+        const y = Math.sin(a) * r
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      ctx.stroke()
+    }
     ctx.restore()
   })
 
   if (aiming) {
+    const dx = player.x - aimX
+    const dy = player.y - aimY
+    const len = Math.max(20, Math.hypot(dx, dy))
+    const aimPower = Math.min(1, len / 180)
     ctx.strokeStyle = 'rgba(120,245,255,0.95)'
-    ctx.lineWidth = 3
+    ctx.lineWidth = 3 + aimPower * 2
     ctx.setLineDash([8, 8])
     ctx.beginPath()
     ctx.moveTo(player.x, player.y)
     ctx.lineTo(aimX, aimY)
     ctx.stroke()
     ctx.setLineDash([])
+
+    ctx.fillStyle = 'rgba(120,245,255,0.18)'
+    ctx.beginPath()
+    ctx.arc(player.x, player.y, 28 + aimPower * 18, 0, Math.PI * 2)
+    ctx.fill()
   }
 
   ctx.save()
@@ -530,6 +667,13 @@ function drawArena() {
   ctx.lineWidth = 3
   ctx.strokeStyle = 'rgba(120,183,255,0.45)'
   ctx.stroke()
+  if (game.phase === 'dash') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+    ctx.beginPath()
+    ctx.moveTo(-10, 0)
+    ctx.lineTo(10, 0)
+    ctx.stroke()
+  }
   ctx.restore()
 
   if (game.hp / game.maxHp < 0.25 && game.reverseCharges > 0) {

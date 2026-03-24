@@ -230,7 +230,8 @@ canvas {
   aspect-ratio: 390 / 720;
   object-fit: contain;
   touch-action: none;
-  transition: transform 0.08s ease;
+  transition: transform 0.08s ease, filter 0.18s ease;
+  filter: saturate(1.06) contrast(1.02);
 }
 
 .overlay {
@@ -260,6 +261,7 @@ canvas {
   text-align: center;
   font-size: 14px;
   color: rgba(239, 245, 255, 0.92);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
 .flash {
@@ -270,6 +272,7 @@ canvas {
   letter-spacing: 0.06em;
   color: #ffffff;
   text-shadow: 0 0 24px rgba(134, 246, 255, 0.9);
+  animation: flash-pop 0.28s ease;
 }
 
 .flash.danger {
@@ -284,6 +287,7 @@ canvas {
   font-weight: 800;
   color: #ffd76a;
   text-shadow: 0 0 18px rgba(255, 215, 106, 0.65);
+  animation: float-up 0.6s ease;
 }
 
 .center {
@@ -336,6 +340,12 @@ canvas {
   transform: translateY(-2px);
   border-color: rgba(134, 246, 255, 0.4);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+.ghost-btn:hover,
+.primary-btn:hover,
+.upgrade-btn:hover {
+  filter: brightness(1.06);
 }
 
 .upgrade-btn strong {
@@ -435,6 +445,28 @@ h2 {
   color: #d5fbff;
   font-size: 13px;
   font-weight: 700;
+}
+
+@keyframes flash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 720px) {
